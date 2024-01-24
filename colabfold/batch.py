@@ -19,6 +19,7 @@ import zipfile
 import shutil
 import pickle
 import gzip
+import csv
 
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from pathlib import Path
@@ -435,25 +436,30 @@ def predict_structure(
             print_line = ""
             conf.append({})
             for x,y in [["mean_plddt","pLDDT"],["ptm","pTM"],["iptm","ipTM"]]:
-              if x in result:
-                print_line += f" {y}={result[x]:.3g}"
-                conf[-1][x] = float(result[x])
+                if x in result:
+                   print_line += f" {y}={result[x]:.3g}"
+                   conf[-1][x] = float(result[x])
             conf[-1]["print_line"] = print_line
             logger.info(f"{tag} took {prediction_times[-1]:.1f}s ({recycles} recycles)")
+
+            # Open the CSV file in append mode ('a')
+            with open('af_results.csv', 'a', newline='') as file:
+                writer = csv.writer(file)
+                # Write the results to the CSV file
+                for x,y in [["mean_plddt","pLDDT"],["ptm","pTM"],["iptm","ipTM"]]:
+                    if x in result:
+                        # Write the result to the CSV file
+                        writer.writerow([x, result[x]])
 
             # create protein object
             final_atom_mask = result["structure_module"]["final_atom_mask"]
             b_factors = result["plddt"][:, None] * final_atom_mask
             unrelaxed_protein = protein.from_prediction(
-                features=input_features,
+               features=input_features,
                 result=result,
                 b_factors=b_factors,
-                remove_leading_feature_dimension=("multimer" not in model_type))
+               remove_leading_feature_dimension=("multimer" not in model_type))
 
-            # callback for visualization
-            if prediction_callback is not None:
-                prediction_callback(unrelaxed_protein, sequences_lengths,
-                                    result, input_features, (tag, False))
 
             #########################
             # save results
